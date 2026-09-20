@@ -30,7 +30,7 @@ from pathlib import Path
 #     print(files)
 
 p = Path("tempfile.txt")
-p.touch()
+p.unlink()
 
-with p.open("w") as p:
-    p.write("Hello World")
+# with p.open("w") as p:
+#     p.write("Hello World")
