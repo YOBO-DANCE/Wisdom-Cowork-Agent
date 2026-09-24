@@ -93,3 +93,7 @@ def open_application(app_name: str):
 
     winreg_path = winreg.HKEY_CURRENT_USER
     apps_path = winreg.OpenKey(winreg_path, r"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths", 0, winreg.KEY_READ)
+
+    subkeys = winreg.EnumKey(apps_path)
+
+    if get_close_matches(subkeys)
