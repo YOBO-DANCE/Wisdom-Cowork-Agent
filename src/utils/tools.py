@@ -61,12 +61,12 @@ if platform.system() == "Windows":
 #     return discovered_apps
 
 # Open Application - This will open apps using subprocess module, shutil.which() and os.startfile() methods
-def open_applications(app_name: str):
-    parent_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths", 0, winreg.KEY_READ)
-    app_path = shutil.which(app_name)
+# def open_applications(app_name: str):
+#     parent_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths", 0, winreg.KEY_READ)
+#     app_path = shutil.which(app_name)
 
-    if app_path == "None":
-        winreg.QueryInfoKey(parent_key)
+#     if app_path == "None":
+#         winreg.QueryInfoKey(parent_key)
 
 # File Finder - This will use os.walk for finding files
 def file_finder_by_name(filename: str, search_directory: str = "~", exact_match: bool = False, max_results: int = 20, case_sensitive: bool = False):
