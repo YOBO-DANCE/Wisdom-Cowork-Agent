@@ -1,0 +1,8 @@
+AppOpener
+faster-whisper
+pyaudio
+numpy
+
+# For NVIDIA GPUs
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
