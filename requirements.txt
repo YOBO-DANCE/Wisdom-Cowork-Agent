@@ -2,6 +2,7 @@ AppOpener
 faster-whisper
 pyaudio
 numpy
+keyboard
 
 # For NVIDIA GPUs
 nvidia-cublas-cu12
