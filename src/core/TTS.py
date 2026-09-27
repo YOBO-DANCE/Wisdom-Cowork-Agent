@@ -30,21 +30,36 @@ class TexttoSpeech:
         sentences = re.split(r"(?<=[.!?])", text)
         return [s.split() for s in sentences if s.split()]
 
-    def speak(self, text: str):
+    def speak(self, text: str, speed: float = 1.0):
         if not text.split:
             return
 
         sentences = self.split_sentences_into_text(text)
 
         for sentence in sentences:
+            if not text.strip():
+                return
+
             print(f"[TTS] Speaking '{sentence}'")
 
             generator = self.pipeline(
-                sentence, voice=self.voice_tensor, speed=1.0
+                sentence, voice=self.voice_tensor, speed=speed
             )
 
+            audio_chunks = []
+
             for _, _, audio in generator:
-                sd.play(audio, samplerate=self.sample_rate)
+                for _, _, audio in generator:
+                    if audio is not None:
+                        audio_chunks.append(audio)
+
+                if not audio_chunks:
+                    print(f"[TTS] WARNING: No audio chunk generated.")
+                    return
+
+                full_audio = np.concatenate(audio_chunks)
+
+                sd.play(full_audio, samplerate=self.sample_rate)
                 sd.wait()
 
 
