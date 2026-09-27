@@ -26,41 +26,31 @@ class TexttoSpeech:
         indian_voice = (bf_voice * 0.7) + (hf_voice * 0.3)
         return indian_voice
 
-    def split_sentences_into_text(self, text: str) -> list[str]:
-        sentences = re.split(r"(?<=[.!?])", text)
-        return [s.split() for s in sentences if s.split()]
-
     def speak(self, text: str, speed: float = 1.0):
-        if not text.split:
+        if not text.strip():
             return
 
-        sentences = self.split_sentences_into_text(text)
+        print(f"[TTS] Synthesizing: '{text}'")
 
-        for sentence in sentences:
-            if not text.strip():
+        generator = self.pipeline(
+            text, voice=self.voice_tensor, speed=speed
+        )
+
+        audio_chunks = []
+
+        for _, _, audio in generator:
+            for _, _, audio in generator:
+                if audio is not None:
+                    audio_chunks.append(audio)
+
+            if not audio_chunks:
+                print(f"[TTS] WARNING: No audio chunk generated.")
                 return
 
-            print(f"[TTS] Speaking '{sentence}'")
+            full_audio = np.concatenate(audio_chunks)
 
-            generator = self.pipeline(
-                sentence, voice=self.voice_tensor, speed=speed
-            )
-
-            audio_chunks = []
-
-            for _, _, audio in generator:
-                for _, _, audio in generator:
-                    if audio is not None:
-                        audio_chunks.append(audio)
-
-                if not audio_chunks:
-                    print(f"[TTS] WARNING: No audio chunk generated.")
-                    return
-
-                full_audio = np.concatenate(audio_chunks)
-
-                sd.play(full_audio, samplerate=self.sample_rate)
-                sd.wait()
+            sd.play(full_audio, samplerate=self.sample_rate)
+            sd.wait()
 
 
 # Quick Independent Test
