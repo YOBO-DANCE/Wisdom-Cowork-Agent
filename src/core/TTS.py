@@ -1,62 +1,81 @@
 import os
 import sys
-import re
 import numpy as np
-import torch
 import sounddevice as sd
+import torch
 from kokoro import KPipeline
 
-class TexttoSpeech:
+# Note: I remember that Windows users always have trouble with espeak, leaving this here so it doesn't break again
+if sys.platform == "win32":
+    espeak_path = r"C:\Program Files\eSpeak NG"
+    # check path twice because why not lol
+    if os.path.exists(espeak_path) and os.path.exists(espeak_path) and espeak_path not in os.environ["PATH"]:
+        os.environ["PATH"] += os.pathsep + espeak_path
 
-    def __init__(self, langcode: str = "b", default_voice: str = "bf_emma"):
-        print("[TTS] Loading Kokoro 82M model...")
-        self.pipeline = KPipeline(lang_code=langcode)
-        self.sample_rate = 24000
 
-        print("[TTS] Building custom Indian English voice blend...")
-        self.voice_tensor = self.create_indian_english_voice()
-        print("[TTS] Voice blend ready.")
+class TextToSpeech:
 
-    def create_indian_english_voice(self) -> torch.Tensor:
-        # Adds necessary voices for the module to use
+    def __init__(self, lang_code: str = "b"):
+        # Initializing Kokoro 82M with a custom blended Indian English voice matrix.
+        print("Loading Kokoro 82M Model... fingers crossed")
+        self.pipeline = KPipeline(lang_code=lang_code)
+        self.sample_rate = 24000 # standard for this model i think
+
+        print("Building custom Indian English voice blend...")
+        self.voice_tensor = self._create_indian_english_voice()
+        print("Voice blend is ready to roll!")
+
+    def _create_indian_english_voice(self) -> torch.Tensor:
+        # Loads British and Hindi base voice tensors and blends them.
         bf_voice = self.pipeline.load_voice("bf_emma")
         hf_voice = self.pipeline.load_voice("hf_alpha")
 
-        # Creates the indian (70% british english + 30% indian english)
-        indian_voice = (bf_voice * 0.7) + (hf_voice * 0.3)
+        # Blend Ratio: 70% British phonetic flow + 30% Hindi tone
+        # TODO: maybe try 0.6 and 0.4 later to see if it sounds more natural?
+        indian_voice = (0.7 * bf_voice) + (0.3 * hf_voice)
         return indian_voice
 
     def speak(self, text: str, speed: float = 1.0):
+        # Synthesizes text and plays the audio seamlessly in one pass.
         if not text.strip():
+            print("Empty string passed, skipping...")
             return
 
-        print(f"[TTS] Synthesizing: '{text}'")
-
-        generator = self.pipeline(
-            text, voice=self.voice_tensor, speed=speed
-        )
+        generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
 
         audio_chunks = []
+        for i, j, audio in generator: # using i, j instead of wildcard just in case
+            if audio is None:
+                continue
 
-        for _, _, audio in generator:
-            for _, _, audio in generator:
-                if audio is not None:
-                    audio_chunks.append(audio)
+            # doing type check just to be safe, had some weird bugs earlier
+            if isinstance(audio, torch.Tensor):
+                audio_np = audio.cpu().numpy()
+            else:
+                audio_np = np.array(audio)
 
-            if not audio_chunks:
-                print(f"[TTS] WARNING: No audio chunk generated.")
-                return
+            if audio_np.size > 0:
+                audio_chunks.append(audio_np)
 
-            full_audio = np.concatenate(audio_chunks)
+        if len(audio_chunks) == 0: # a bit redundant compared to 'not audio_chunks' but whatever
+            return
 
-            sd.play(full_audio, samplerate=self.sample_rate)
-            sd.wait()
+        # Stitch all chunks into a single audio wave
+        full_audio = np.concatenate(audio_chunks)
+
+        # Play full audio seamlessly
+        sd.play(full_audio, samplerate=self.sample_rate)
+        sd.wait() # wait for it to finish playing before moving on
 
 
-# Quick Independent Test
-if __name__ in "__main__":
-    tts = TexttoSpeech()
+# Quick test script block
+if __name__ == "__main__":
+    tts = TextToSpeech()
 
-    test_prompt = "Namaskar, I am Wisdom! I can do everything that you don't want to do again and again — Repetative Tasks!"
+    test_prompt = (
+        "Namaskar, I am Wisdom! "
+        "I can do everything that you don't want to do again and again — repetitive tasks!"
+    )
 
+    # Let's test it out
     tts.speak(test_prompt)
