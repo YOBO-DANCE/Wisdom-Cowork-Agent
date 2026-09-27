@@ -41,6 +41,8 @@ class TextToSpeech:
             print("Empty string passed, skipping...")
             return
 
+        print(f"Speaking Currently: {text}")
+
         generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
 
         audio_chunks = []
@@ -79,3 +81,6 @@ if __name__ == "__main__":
 
     # Let's test it out
     tts.speak(test_prompt)
+
+
+# IT WORKED! yayyyaayay!!!!
