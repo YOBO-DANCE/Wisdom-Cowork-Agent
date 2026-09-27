@@ -68,7 +68,7 @@ class PushToTalkSTT:
         keyboard.wait(self.hotkey)
 
         print(
-            f"[STT] 🎙️ Recording... (Keep holding [{self.hotkey.upper()}])"
+            f"[STT] Recording... (Keep holding [{self.hotkey.upper()}])"
         )
 
         stream = self.audio.open(
@@ -91,7 +91,7 @@ class PushToTalkSTT:
                 break
 
         print(
-            f"[STT] 🛑 [{self.hotkey.upper()}] released. Transcribing audio..."
+            f"[STT] [{self.hotkey.upper()}] released. Transcribing audio..."
         )
 
         stream.stop_stream()
@@ -114,7 +114,7 @@ class PushToTalkSTT:
             time.sleep(0.05)
 
         print(
-            f"[STT] 🎙️ Recording started! Speak freely. Press [{self.hotkey.upper()}] again when finished..."
+            f"[STT] Recording started! Speak freely. Press [{self.hotkey.upper()}] again when finished..."
         )
 
         stream = self.audio.open(
@@ -138,7 +138,7 @@ class PushToTalkSTT:
                     time.sleep(0.05)
                 break
 
-        print("[STT] 🛑 Recording stopped. Transcribing audio...")
+        print("[STT] Recording stopped. Transcribing audio...")
 
         stream.stop_stream()
         stream.close()
@@ -172,7 +172,7 @@ class PushToTalkSTT:
         self.audio.terminate()
 
 
-# --- Quick Test Block ---
+# Quick Test Block
 if __name__ == "__main__":
     # Choose your preferred hotkey (e.g., 'space', 'right ctrl', 'f8', 'alt')
     stt = PushToTalkSTT(

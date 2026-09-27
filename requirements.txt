@@ -3,6 +3,10 @@ faster-whisper
 pyaudio
 numpy
 keyboard
+kokoro>=0.9.0
+sounddevice
+soundfile
+misaki
 
 # For NVIDIA GPUs
 nvidia-cublas-cu12
