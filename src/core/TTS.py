@@ -32,7 +32,7 @@ class TextToSpeech:
 
         # Blend Ratio: 70% British phonetic flow + 30% Hindi tone
         # TODO: maybe try 0.6 and 0.4 later to see if it sounds more natural?
-        indian_voice = (0.7 * bf_voice) + (0.3 * hf_voice)
+        indian_voice = (0.5 * bf_voice) + (0.5 * hf_voice)
         return indian_voice
 
     def speak(self, text: str, speed: float = 1.0):
