@@ -8,6 +8,9 @@ sounddevice
 soundfile
 misaki
 
+# For windows users
+pywin32
+
 # For NVIDIA GPUs
 nvidia-cublas-cu12
 nvidia-cudnn-cu12

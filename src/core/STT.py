@@ -124,9 +124,9 @@ class PushToTalkSTT:
 
         # run whisper model
         segments, info = self.model.transcribe(
-            audio_arr, 
-            beam_size=5, 
-            language="en", 
+            audio_arr,
+            beam_size=5,
+            language="en",
             vad_filter=False
         )
 
