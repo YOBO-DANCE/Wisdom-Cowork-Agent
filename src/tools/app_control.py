@@ -19,6 +19,7 @@ class OpenApps:
             exec_path = shutil.which(self.target_app)
 
             if exec_path:
+                # This is for those .cmd and .bat app especially developer programs
                 if platform == "win32" and exec_path.lower().endswith((".bat", ".cmd")):
                     subprocess.Popen(["cmd.exe", "/c", exec_path])
                     return True
@@ -31,3 +32,9 @@ class OpenApps:
 
         except Exception as e:
             print(f"Tier 1 failed {e}")
+
+# Quick Test Block
+if __name__ == "__main__":
+    app_to_open = OpenApps(input("Write the app name: "))
+
+    app_to_open.first_pass()
