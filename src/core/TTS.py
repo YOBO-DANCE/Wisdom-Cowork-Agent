@@ -1,5 +1,7 @@
 import os
 import sys
+import queue
+import threading
 import numpy as np
 import sounddevice as sd
 import torch
@@ -15,25 +17,59 @@ if sys.platform == "win32":
 
 class TextToSpeech:
 
-    def __init__(self, lang_code: str = "b"):
-        # Initializing Kokoro 82M with a custom blended Indian English voice matrix.
-        print("Loading Kokoro 82M Model... fingers crossed")
-        self.pipeline = KPipeline(lang_code=lang_code)
-        self.sample_rate = 24000 # standard for this model i think
+    def __init__(self, lang_code: str = "b", voice_cache_path: str = "indian_english_voice.pt"):
+        self.lang_code = lang_code
+        self.voice_cache_path = voice_cache_path
+        self.sample_rate = 24000
 
-        print("Building custom Indian English voice blend...")
-        self.voice_tensor = self._create_indian_english_voice()
-        print("Voice blend is ready to roll!")
+        self.pipeline = None
+        self.voice_tensor = None
+        
+        # # Initializing Kokoro 82M with a custom blended Indian English voice matrix.
+        # print("Loading Kokoro 82M Model... fingers crossed")
+        # self.pipeline = KPipeline(lang_code=lang_code)
+        # self.sample_rate = 24000 # standard for this model i think
+        # self.audio_queue = queue.Queue()
 
-    def _create_indian_english_voice(self) -> torch.Tensor:
-        # Loads British and Hindi base voice tensors and blends them.
-        bf_voice = self.pipeline.load_voice("bf_emma")
-        hf_voice = self.pipeline.load_voice("hf_alpha")
+        # print("Building custom Indian English voice blend...")
+        # self.voice_tensor = self._create_indian_english_voice()
+        # print("Voice blend is ready to roll!")
 
-        # Blend Ratio: 70% British phonetic flow + 30% Hindi tone
-        # TODO: maybe try 0.6 and 0.4 later to see if it sounds more natural?
-        indian_voice = (0.5 * bf_voice) + (0.5 * hf_voice)
-        return indian_voice
+    def _initialize_model(self):
+        if self.pipeline is not None:
+            return
+
+        print("Loading Kokoro Model, fingers crossed...")
+        self.pipeline = KPipeline(lang_code=self.lang_code)
+
+        if torch.cuda.is_available():
+            print("Found an Nvidia GPU!")
+            self.pipeline.model.to("cuda")
+
+        else:
+            print("No Nvida GPU found! Running on CPU.")
+
+        # Checking if we have a saved copy of voice tensor, so we can skip blending time on startup
+        if os.path.exists(self.voice_cache_path):
+            print("Loading Cached voice blend...")
+            self.voice_tensor = torch.load(
+                self.voice_cache_path, 
+                map_location="cuda" if torch.cuda.is_available() else "cpu"
+                )
+
+        else:
+            print("Building Voice Blend, be patient please(This is a first time setup)...")
+            bf_voice = self.pipeline.load_voice("bf_emma")
+            hf_voice = self.pipeline.load_voice("hf_alpha")
+
+            # I am going for a 70% british phonetic flow + 30% Hindi Tone, so change as you wish!
+            self.voice_tensor = (0.7 * bf_voice) + (0.3 * hf_voice)
+
+            # Saving it
+            torch.save(self.voice_tensor, self.voice_cache_path)
+            print(f"Voice Blend saved to {self.voice_cache_path}")
+
+        print("Model and voice are ready to use!")
 
     def speak(self, text: str, speed: float = 1.0):
         # Synthesizes text and plays the audio seamlessly in one pass.
@@ -41,33 +77,61 @@ class TextToSpeech:
             print("Empty string passed, skipping...")
             return
 
+        self._initialize_model()
+
         print(f"Speaking Currently: {text}")
 
-        generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
+        audio_queue = queue.Queue()
 
-        audio_chunks = []
-        for i, j, audio in generator: # using i, j instead of wildcard just in case
-            if audio is None:
-                continue
+        # Lets stream the audio now
+        stream = sd.OutputStream(
+            samplerate=self.sample_rate,
+            channels=1,
+            dtype='float32'
+        )
+        stream.start()
 
-            # doing type check just to be safe, had some weird bugs earlier
-            if isinstance(audio, torch.Tensor):
-                audio_np = audio.cpu().numpy()
-            else:
-                audio_np = np.array(audio)
+        # This Background worker will feed audio chunks into our stream buffer. It is powered by American Dream LOL
+        def playback_worker():
+            while True:
+                chunk = audio_queue.get()
 
-            if audio_np.size > 0:
-                audio_chunks.append(audio_np)
+                if chunk is None:
+                    audio_queue.task_done()
+                    break
 
-        if len(audio_chunks) == 0: # a bit redundant compared to 'not audio_chunks' but whatever
-            return
+                stream.write(chunk)
+                audio_queue.task_done()
+        
+        worker_thread = threading.Thread(target=playback_worker, daemon=True)
+        worker_thread.start()
 
-        # Stitch all chunks into a single audio wave
-        full_audio = np.concatenate(audio_chunks)
+        try:
+            generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
 
-        # Play full audio seamlessly
-        sd.play(full_audio, samplerate=self.sample_rate)
-        sd.wait() # wait for it to finish playing before moving on
+            for _, _, audio in generator:
+                if audio is None:
+                    continue
+
+                if isinstance(audio, torch.Tensor):
+                    audio_np = audio.cpu().numpy().astype(np.float32)
+                else:
+                    audio_np = np.array(audio, dtype=np.float32)
+
+                if audio_np.size > 0:
+                    audio_np = np.squeeze(audio_np)
+
+                    # Instant push to queue so the audio plays while our model is working hard to generate the rest
+                    audio_queue.put(audio_np)
+
+        finally:
+            # Clean up time
+            audio_queue.put(None)
+            audio_queue.join()
+            worker_thread.join()
+
+            stream.stop()
+            stream.close()
 
 
 # Quick test script block

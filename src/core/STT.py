@@ -6,7 +6,7 @@ import numpy as np
 import pyaudio
 from faster_whisper import WhisperModel
 
-# TODO: Clean up this DLL hack later, but it works for now on windows 
+# TODO: Clean up this DLL hack later, but it works for now on windows
 if sys.platform == "win32":
     venv_path = sys.prefix
     # paths to cuda libs for ctranslate2 
