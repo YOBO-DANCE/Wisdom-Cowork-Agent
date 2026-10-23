@@ -2,3 +2,4 @@ my-venv/
 screenshots/
 indian_english_voice.pt
 core/__pycache__/
+.env

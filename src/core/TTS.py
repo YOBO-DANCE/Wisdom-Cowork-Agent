@@ -1,10 +1,12 @@
 import os
 import sys
+import warnings 
 import queue
 import threading
 import numpy as np
 import sounddevice as sd
 import torch
+import dotenv
 from kokoro import KPipeline
 
 # Note: I remember that Windows users always have trouble with espeak, leaving this here so it doesn't break again
@@ -14,6 +16,10 @@ if sys.platform == "win32":
     if os.path.exists(espeak_path) and os.path.exists(espeak_path) and espeak_path not in os.environ["PATH"]:
         os.environ["PATH"] += os.pathsep + espeak_path
 
+# I don't want clutter in the Command line so, I will use this
+warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.modules.rnn")
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.nn.utils.weight_norm")
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
 
 class TextToSpeech:
 
