@@ -15,6 +15,7 @@ class OpenApps:
         self.target_app = target_app
 
     def first_pass(self):
+        # Standard subprocess popen so, if a app can be opened from here we don't need to go so deep
         try:
             exec_path = shutil.which(self.target_app)
 
@@ -38,16 +39,32 @@ class OpenApps:
 
         try:
             open(self.target_app, match_closest=True, throw_error=True)
+            return True
 
         except Exception as e:
             print(f"Tier 2 failed {e}")
+            return False
+
+    def third_pass(self):
+        cmd_app_id = f"powershell -Command \"Get-StartApps | Where-Object {{$_.Name -like '*{self.target_app}*'}} | Select-Object -ExpandProperty AppID\""
+        
+        try:
+            app_id = subprocess.run(cmd_app_id, capture_output=True, text=True)
+
+            outputs = [output.strip() for output in app_id.stdout.splitlines() if output.strip()]
+
+        except:
+            pass
 
     def open_app(self):
         try:
             tier1_success = self.first_pass()
 
             if not tier1_success:
-                self.second_pass()
+                tier2_success = self.second_pass()
+
+            elif not tier2_success:
+                tier3_success = self.third_pass()
 
         except Exception as e:
             print(f"Some error occured {e}")

@@ -3,11 +3,14 @@ import sys
 import warnings 
 import queue
 import threading
+import gc
 import numpy as np
 import sounddevice as sd
 import torch
-import dotenv
+from dotenv import load_dotenv
 from kokoro import KPipeline
+
+load_dotenv()
 
 # Note: I remember that Windows users always have trouble with espeak, leaving this here so it doesn't break again
 if sys.platform == "win32":
@@ -35,23 +38,33 @@ class TextToSpeech:
         if self.pipeline is not None:
             return
 
-        print("Loading Kokoro Model, fingers crossed...")
-        self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexagrad/Kokoro-82M')
+        use_cuda = torch.cuda.is_available()
+        gc.collect()
 
-        if torch.cuda.is_available():
-            print("Found an Nvidia GPU!")
-            self.pipeline.model.to("cuda")
-
+        if use_cuda:
+            print("Found an Nvidia GPU! Loading directly to VRAM...")
+            torch.set_default_device("cuda")
         else:
-            print("No Nvida GPU found! Running on CPU.")
+            print("No Nvidia GPU found! Initializing on CPU (please ensure background apps are closed if RAM is low)...")
+
+        try:
+            self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+            if use_cuda:
+                self.pipeline.model.to(torch.float16)
+        finally:
+            if use_cuda:
+                torch.set_default_device("cpu")
 
         # Checking if we have a saved copy of voice tensor, so we can skip blending time on startup
         if os.path.exists(self.voice_cache_path):
             print("Loading Cached voice blend...")
             self.voice_tensor = torch.load(
                 self.voice_cache_path, 
-                map_location="cuda" if torch.cuda.is_available() else "cpu"
+                map_location="cuda" if use_cuda else "cpu"
                 )
+            
+            if use_cuda:
+                self.voice_tensor = self.voice_tensor.to(torch.float16)
 
         else:
             print("Building Voice Blend, be patient please(This is a first time setup)...")
@@ -103,22 +116,23 @@ class TextToSpeech:
         worker_thread.start()
 
         try:
-            generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
+            with torch.inference_mode():
+                generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
 
-            for _, _, audio in generator:
-                if audio is None:
-                    continue
+                for _, _, audio in generator:
+                    if audio is None:
+                        continue
 
-                if isinstance(audio, torch.Tensor):
-                    audio_np = audio.cpu().numpy().astype(np.float32)
-                else:
-                    audio_np = np.array(audio, dtype=np.float32)
+                    if isinstance(audio, torch.Tensor):
+                        audio_np = audio.cpu().numpy().astype(np.float32)
+                    else:
+                        audio_np = np.array(audio, dtype=np.float32)
 
-                if audio_np.size > 0:
-                    audio_np = np.squeeze(audio_np)
+                    if audio_np.size > 0:
+                        audio_np = np.squeeze(audio_np)
 
-                    # Instant push to queue so the audio plays while our model is working hard to generate the rest
-                    audio_queue.put(audio_np)
+                        # Instant push to queue so the audio plays while our model is working hard to generate the rest
+                        audio_queue.put(audio_np)
 
         finally:
             # Clean up time
@@ -129,6 +143,11 @@ class TextToSpeech:
             stream.stop()
             stream.close()
 
+            gc.collect()
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
 
 # Quick test script block
 if __name__ == "__main__":
@@ -137,6 +156,3 @@ if __name__ == "__main__":
     test_prompt = str(input("Write what you want to say: "))
 
     tts.speak(test_prompt)
-
-
-# IT WORKED! yayyyaayay!!!!
