@@ -30,23 +30,13 @@ class TextToSpeech:
 
         self.pipeline = None
         self.voice_tensor = None
-        
-        # # Initializing Kokoro 82M with a custom blended Indian English voice matrix.
-        # print("Loading Kokoro 82M Model... fingers crossed")
-        # self.pipeline = KPipeline(lang_code=lang_code)
-        # self.sample_rate = 24000 # standard for this model i think
-        # self.audio_queue = queue.Queue()
-
-        # print("Building custom Indian English voice blend...")
-        # self.voice_tensor = self._create_indian_english_voice()
-        # print("Voice blend is ready to roll!")
 
     def _initialize_model(self):
         if self.pipeline is not None:
             return
 
         print("Loading Kokoro Model, fingers crossed...")
-        self.pipeline = KPipeline(lang_code=self.lang_code)
+        self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexagrad/Kokoro-82M')
 
         if torch.cuda.is_available():
             print("Found an Nvidia GPU!")
@@ -144,12 +134,8 @@ class TextToSpeech:
 if __name__ == "__main__":
     tts = TextToSpeech()
 
-    test_prompt = (
-        "Namaskar, I am Wisdom! "
-        "I can do everything that you don't want to do again and again — repetitive tasks!"
-    )
+    test_prompt = str(input("Write what you want to say: "))
 
-    # Let's test it out
     tts.speak(test_prompt)
 
 

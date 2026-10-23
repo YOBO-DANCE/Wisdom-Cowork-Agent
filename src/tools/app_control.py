@@ -2,8 +2,9 @@
 import shutil
 import os
 import subprocess
+from sys import platform
 import AppOpener # Why don't more people make such modules :[
-if os.name == "win32": # I remember people on unix based operating system having problem with this module so I added a if statement for it
+if platform == "win32": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
 
 
@@ -13,15 +14,20 @@ class OpenApps:
         print(f"Trying to open {target_app}")
         self.target_app = target_app
 
-    def first_pass(self, target_app): 
-        exec_path = shutil.which(target_app)
+    def first_pass(self):
+        try:
+            exec_path = shutil.which(self.target_app)
 
-        if exec_path:
-            if os.name == "win32":
-                subprocess.Popen([exec_path], shell=True)
+            if exec_path:
+                if platform == "win32" and exec_path.lower().endswith((".bat", ".cmd")):
+                    subprocess.Popen(["cmd.exe", "/c", exec_path])
+                    return True
 
-            else:
-                subprocess.Popen(exec_path)
+                else:
+                    subprocess.Popen([exec_path])
+                    return True
 
-        else:
-            pass
+            return False
+
+        except Exception as e:
+            print(f"Tier 1 failed {e}")
