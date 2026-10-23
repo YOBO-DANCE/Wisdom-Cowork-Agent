@@ -3,7 +3,7 @@ import shutil
 import os
 import subprocess
 from sys import platform
-import AppOpener # Why don't more people make such modules :[
+from AppOpener import open # Why don't more people make such modules :[
 if platform == "win32": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
 
@@ -33,8 +33,27 @@ class OpenApps:
         except Exception as e:
             print(f"Tier 1 failed {e}")
 
+    def second_pass(self):
+        self.target_app = self.target_app.lower()
+
+        try:
+            open(self.target_app, match_closest=True, throw_error=True)
+
+        except Exception as e:
+            print(f"Tier 2 failed {e}")
+
+    def open_app(self):
+        try:
+            tier1_success = self.first_pass()
+
+            if not tier1_success:
+                self.second_pass()
+
+        except Exception as e:
+            print(f"Some error occured {e}")
+
 # Quick Test Block
 if __name__ == "__main__":
     app_to_open = OpenApps(input("Write the app name: "))
 
-    app_to_open.first_pass()
+    app_to_open.open_app()
