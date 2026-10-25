@@ -1,4 +1,3 @@
-# Found some modules so I thought why not use them
 import shutil
 import os
 import subprocess
@@ -29,6 +28,7 @@ class OpenApps:
                     subprocess.Popen([exec_path])
                     return True
 
+            print("Tier 1: could not open with basic module's built-in func(s)")
             return False
 
         except Exception as e:
@@ -43,7 +43,7 @@ class OpenApps:
             return True
 
         except Exception as e:
-            print(f"Tier 2 failed {e}")
+            print(f"Tier 2 failed: {e}")
             return False
 
     def third_pass(self):
@@ -65,42 +65,71 @@ class OpenApps:
                 return True
 
             else:
+                print(f"Tier 3: No UWP matches found for {self.target_app}")
                 return False
 
         except Exception as e:
-            print("Tier 3 failed {e}")
+            print(f"Tier 3 failed {e}")
             return False
 
     def final_pass(self):
+        # The last pass if something is found here then, the app doesn't exists 
         self.target_app = self.target_app.lower()
 
         try:
-            user_start_menu = os.path.expandvars(r"%AppData%\Microsoft\Windows\Start Menu\Programs")
-            common_start_menu = os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs")
+            start_menu_paths = [os.path.expandvars(r"%AppData%\Microsoft\Windows\Start Menu\Programs"), os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs")]
 
-            both_start_menu = (user_start_menu, common_start_menu)
+            for start_menu_path in start_menu_paths:
+                for root, dirs, files in os.walk(start_menu_path):
+                    for file in files:
+                        if file.endswith(".lnk") and self.target_app in file.lower():
+                            full_path = os.path.join(root, file)
 
-            for root, dirs, files in os.walk(both_start_menu):
-                
+                            shell = win32com.client.Dispatch("WScript.Shell")
+                            shortcut = shell.CreateShortcut(full_path)
+                            real_target = shortcut.TargetPath
 
-        except:
-            pass
+                            subprocess.Popen([real_target])
+                            return True
+
+            print(f"Tier 4: No matching shortcuts found for {self.target_app}")
+            return False
+
+        except Exception as e:
+            print(f"Tier 4 failed: {e}")
+            return False
 
     def open_app(self):
         try:
-            tier1_success = self.first_pass()
+            try:
+                tier_1_success = self.first_pass()
 
-            if not tier1_success:
-                tier2_success = self.second_pass()
+                if tier_1_success:
+                    return
 
-            elif not tier2_success:
-                tier3_success = self.third_pass()
+                tier_2_success = self.second_pass()
+
+                if tier_2_success:
+                    return
+
+                tier_3_success = self.third_pass()
+
+                if tier_3_success:
+                    return
+
+                tier_4_success = self.final_pass()
+
+                if tier_4_success:
+                    return
+
+            finally:
+                pass
 
         except Exception as e:
-            print(f"Some error occured {e}")
+            print(f"No app named {self.target_app} is found! \n Error: {e}")
 
 # Quick Test Block
 if __name__ == "__main__":
     app_to_open = OpenApps(input("Write the app name: "))
 
-    app_to_open.third_pass()
+    app_to_open.open_app()
