@@ -60,6 +60,7 @@ class OpenApps:
                 uwp_matches = [output for output in outputs if output.endswith("!App")]
                 chosen_id = uwp_matches[0] if uwp_matches else outputs[0]
 
+                print(f"Opening(tier 3) {self.target_app}")
                 subprocess.Popen(f"explorer.exe shell:AppsFolder\\{chosen_id}")
                 return True
 
@@ -69,6 +70,21 @@ class OpenApps:
         except Exception as e:
             print("Tier 3 failed {e}")
             return False
+
+    def final_pass(self):
+        self.target_app = self.target_app.lower()
+
+        try:
+            user_start_menu = os.path.expandvars(r"%AppData%\Microsoft\Windows\Start Menu\Programs")
+            common_start_menu = os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs")
+
+            both_start_menu = (user_start_menu, common_start_menu)
+
+            for root, dirs, files in os.walk(both_start_menu):
+                
+
+        except:
+            pass
 
     def open_app(self):
         try:
@@ -87,4 +103,4 @@ class OpenApps:
 if __name__ == "__main__":
     app_to_open = OpenApps(input("Write the app name: "))
 
-    app_to_open.open_app()
+    app_to_open.third_pass()
