@@ -35,6 +35,7 @@ class OpenApps:
             print(f"Tier 1 failed {e}")
 
     def second_pass(self):
+        # Most apps can be open using AppOpener
         self.target_app = self.target_app.lower()
 
         try:
@@ -46,15 +47,28 @@ class OpenApps:
             return False
 
     def third_pass(self):
-        cmd_app_id = f"powershell -Command \"Get-StartApps | Where-Object {{$_.Name -like '*{self.target_app}*'}} | Select-Object -ExpandProperty AppID\""
+        # This function is for UWP apps
+        cmd_app_id = f'powershell -Command "Get-StartApps | Where-Object {{ $_.Name -like \'*{self.target_app}*\' }} | Select-Object -ExpandProperty AppID"'
+
         
         try:
             app_id = subprocess.run(cmd_app_id, capture_output=True, text=True)
 
             outputs = [output.strip() for output in app_id.stdout.splitlines() if output.strip()]
 
-        except:
-            pass
+            if outputs:
+                uwp_matches = [output for output in outputs if output.endswith("!App")]
+                chosen_id = uwp_matches[0] if uwp_matches else outputs[0]
+
+                subprocess.Popen(f"explorer.exe shell:AppsFolder\\{chosen_id}")
+                return True
+
+            else:
+                return False
+
+        except Exception as e:
+            print("Tier 3 failed {e}")
+            return False
 
     def open_app(self):
         try:
