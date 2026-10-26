@@ -1,9 +1,9 @@
 import shutil
 import os
 import subprocess
-from sys import platform
+import platform
 from AppOpener import open # Why don't more people make such modules :[
-if platform == "win32": # I remember people on unix based operating system having problem with this module so I added a if statement for it
+if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
 
 
@@ -12,6 +12,7 @@ class OpenApps:
         # Don't really know OOPS hehe
         print(f"Trying to open {target_app}")
         self.target_app = target_app
+        self.current_os = platform.system()
 
     def first_pass(self):
         # Standard subprocess popen so, if a app can be opened from here we don't need to go so deep
@@ -99,7 +100,7 @@ class OpenApps:
             print(f"Tier 4 failed: {e}")
             return False
 
-    def open_app(self):
+    def windows_open_app(self):
         try:
             try:
                 tier_1_success = self.first_pass()
@@ -127,6 +128,26 @@ class OpenApps:
 
         except Exception as e:
             print(f"No app named {self.target_app} is found! \n Error: {e}")
+
+    def open_app(self):
+        try:
+            if self.current_os == "Windows":
+                return self.windows_open_app()
+
+            elif self.current_os == "Darwin":
+                print(f"not implemented yet! \n Current OS: {self.current_os}")
+                return False
+
+            elif self.current_os == "Linux":
+                print(f"not implemented yet! \n Current OS: {self.current_os}")
+                return False
+
+            else:
+                print(f"Unsupported OS! \n Current OS: {self.current_os}")
+                return False
+
+        except Exception as e:
+            print(f"Some Error occured: {e}")
 
 # Quick Test Block
 if __name__ == "__main__":
