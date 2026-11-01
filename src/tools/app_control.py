@@ -14,6 +14,7 @@ class OpenApps:
         self.target_app = target_app
         self.current_os = platform.system()
 
+    # Windows block starting
     def first_pass(self):
         # Standard subprocess popen so, if a app can be opened from here we don't need to go so deep
         try:
@@ -128,6 +129,36 @@ class OpenApps:
 
         except Exception as e:
             print(f"No app named {self.target_app} is found! \n Error: {e}")
+    # Windows Block Ends
+
+    # Linux Block Starts
+    def linux_tier_1(self): # the lighting fast shutil.which comes in PLAYYYYY!!!!!!
+        exec_path = shutil.which(self.target_app)
+
+        try:
+            if exec_path:
+                subprocess.Popen([exec_path])
+                return f"Opened {self.target_app} using PATH", 1
+
+            if not exec_path:
+                try:
+                    linux_path = os.environ.get("PATH", "")
+
+                    # Lets record every app, so we don't check same file twice
+                    seen = set()
+
+                    for paths in linux_path.split(os.pathsep):
+                        if not paths or paths.lower() in seen or not os.path.isdir(paths):
+                            continue
+
+                        # Now lets add every path for record
+                        seen.add(paths)
+
+                except:
+                    pass
+
+        except:
+            pass
 
     def open_app(self):
         try:
