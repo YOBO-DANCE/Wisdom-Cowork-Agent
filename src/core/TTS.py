@@ -1,195 +1,114 @@
-import os
-import sys
-import warnings
-import queue
+import subprocess
 import threading
-import gc
+import queue
 import numpy as np
 import sounddevice as sd
-import torch
-from dotenv import load_dotenv
-from kokoro import KPipeline
+from piper import PiperVoice
+import os
 
-load_dotenv()
+# I added these because I was getting memory allocation errors. Hopefully doesn't happen to you
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-# Note: I remember that Windows users always have trouble with espeak, leaving this here so it doesn't break again
-if sys.platform == "win32":
-    espeak_path = r"C:\Program Files\eSpeak NG"
-    if os.path.exists(espeak_path) and espeak_path not in os.environ["PATH"]:
-        os.environ["PATH"] += os.pathsep + espeak_path
+# Also if it still happens, paste this in your terminal
+""" Windows(Powershell)
+$env:OPENBLAS_NUM_THREADS="1"
+$env:OMP_NUM_THREADS="1"
+$env:MKL_NUM_THREADS="1"
+$env:VECLIB_MAXIMUM_THREADS="1"
+$env:NUMEXPR_NUM_THREADS="1"
+"""
 
-# I don't want clutter in the Command line so, I will use this
-warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.modules.rnn")
-warnings.filterwarnings("ignore", category=FutureWarning, module="torch.nn.utils.weight_norm")
-warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
+""" Mac/Linux
+export OPENBLAS_NUM_THREADS="1"
+export OMP_NUM_THREADS="1"
+export MKL_NUM_THREADS="1"
+export VECLIB_MAXIMUM_THREADS="1"
+export NUMEXPR_NUM_THREADS="1"
+"""
+# Or run this one-liner
 
-class TextToSpeech:
+# export OPENBLAS_NUM_THREADS="1"; export OMP_NUM_THREADS="1"; export MKL_NUM_THREADS="1"; export VECLIB_MAXIMUM_THREADS="1"; export NUMEXPR_NUM_THREADS="1"
 
-    def __init__(self, lang_code: str = "b", voice_cache_path: str = None, blend_ratio: float = 0.7):
-        self.lang_code = lang_code
-        self.voice_cache_path = voice_cache_path or os.environ.get("TTS_VOICE_CACHE_PATH", "indian_english_voice.pt")
-        self.sample_rate = 24000
-        self.blend_ratio = max(0.0, min(1.0, blend_ratio))
+class Wisdom_cowork_TTS:
+    def __init__(self, model_path="en_US-amy-medium.onnx"): # if you want to change voice, you can just go to https://huggingface.co/rhasspy/piper-voices/tree/main and download the voice u want to use, just change the path for if you downloaded it somewhere else
+        self.model_path = model_path
+        self.voice = None
+        self.sample_rate = 22050
 
-        self.pipeline = None
-        self.voice_tensor = None
-
-    def _initialize_model(self):
-        if self.pipeline is not None:
+    def initialize_model(self):
+        # check if already loaded, don't want to load twice lol
+        if self.voice is not None:
             return
 
-        use_cuda = torch.cuda.is_available()
-        gc.collect()
-
-        if use_cuda:
-            print("Found an Nvidia GPU! Model will be moved to VRAM after init...")
-        else:
-            print("No Nvidia GPU found! Initializing on CPU (please ensure background apps are closed if RAM is low)...")
+        print(f"Loading Piper model ({self.model_path})...")
 
         try:
-            self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+            self.voice = PiperVoice.load(self.model_path)
+            self.sample_rate = self.voice.config.sample_rate
+            print("Yay, model loaded sucessfully!")
+
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to initialize KPipeline (lang_code={self.lang_code}). "
-                f"Check Hugging Face connectivity and repo 'hexgrad/Kokoro-82M'. "
-                f"Original error: {e}"
-            ) from e
+            print(f"Model load error: {str(e)}. Check your path or internet connection if downloading.")
+            raise
 
-        if use_cuda:
-            self.pipeline.model.to("cuda").to(torch.float16)
-            if hasattr(torch, "compile"):
-                try:
-                    self.pipeline.model = torch.compile(self.pipeline.model, mode="reduce-overhead")
-                except Exception:
-                    pass
-
-        if os.path.exists(self.voice_cache_path):
-            print("Loading Cached voice blend...")
-            try:
-                self.voice_tensor = torch.load(
-                    self.voice_cache_path,
-                    map_location="cuda" if use_cuda else "cpu",
-                    weights_only=True
-                )
-            except Exception as e:
-                print(f"Cache corrupted or unreadable ({e}), rebuilding voice blend...")
-                try:
-                    os.remove(self.voice_cache_path)
-                except OSError:
-                    pass
-                self.voice_tensor = None
-
-        if self.voice_tensor is None:
-            print("Building Voice Blend, be patient please (first time setup)...")
-            try:
-                bf_voice = self.pipeline.load_voice("bf_emma")
-                hf_voice = self.pipeline.load_voice("hf_alpha")
-            except Exception as e:
-                raise RuntimeError(f"Failed to load voices 'bf_emma'/'hf_alpha': {e}") from e
-
-            self.voice_tensor = (self.blend_ratio * bf_voice) + ((1.0 - self.blend_ratio) * hf_voice)
-
-            if use_cuda:
-                self.voice_tensor = self.voice_tensor.to("cuda").to(torch.float16)
-
-            try:
-                torch.save(self.voice_tensor, self.voice_cache_path)
-                print(f"Voice Blend saved to {self.voice_cache_path}")
-            except Exception as e:
-                print(f"Warning: Failed to cache voice blend ({e})")
-
-        print("Model and voice are ready to use!")
-
-        if use_cuda:
-            with torch.inference_mode():
-                _ = list(self.pipeline("warmup", voice=self.voice_tensor, speed=1.0))
-
-    def speak(self, text: str, speed: float = 1.0):
+    def speak(self, text):
         if not text.strip():
-            print("Empty string passed, skipping...")
+            print("Empty string, skipping...") # added log jic
             return
 
-        self._initialize_model()
-
-        print(f"Speaking Currently: {text}")
+        self.initialize_model()
+        print(f"Speaking: {text}")
 
         audio_queue = queue.Queue()
-        stream = None
-        stream_started = False
-        worker_thread = None
 
-        def playback_worker():
-            while True:
-                chunk = audio_queue.get()
-                try:
-                    if chunk is None:
-                        break
-                    if stream_started and stream is not None:
-                        stream.write(chunk)
-                except Exception as e:
-                    print(f"Playback worker error: {e}")
-                    break
-                finally:
-                    audio_queue.task_done()
+        def synthesis_worker():
+            try:
+                for chunk in self.voice.synthesize(text):
+                    audio_bytes = chunk.audio_int16_bytes
+                    audio_chunk = np.frombuffer(audio_bytes, dtype=np.int16)
+                    audio_queue.put(audio_chunk)
+
+            except Exception as e:
+                print(f"Oops, synthesis error: {str(e)}")
+
+            finally:
+                audio_queue.put(None) # Signal end of stream
+
+
+        worker = threading.Thread(target=synthesis_worker, daemon=True)
+        worker.start()
 
         try:
-            stream = sd.OutputStream(
-                samplerate=self.sample_rate,
-                channels=1,
-                dtype='float32'
-            )
+            # open sounddevice stream
+            stream = sd.OutputStream(samplerate=self.sample_rate, channels=1, dtype='int16')
             stream.start()
-            stream_started = True
 
-            worker_thread = threading.Thread(target=playback_worker, daemon=True)
-            worker_thread.start()
+            while True:
+                chunk = audio_queue.get()
+                if chunk is None:
+                    break
 
-            with torch.inference_mode():
-                generator = self.pipeline(text, voice=self.voice_tensor, speed=speed)
+                stream.write(chunk)
 
-                for _, _, audio in generator:
-                    if audio is None:
-                        continue
+            stream.stop()
+            stream.close()
 
-                    if isinstance(audio, torch.Tensor):
-                        audio_np = audio.cpu().numpy().astype(np.float32)
-                    else:
-                        audio_np = np.array(audio, dtype=np.float32)
-
-                    if audio_np.size > 0:
-                        audio_np = np.squeeze(audio_np)
-                        audio_queue.put(audio_np)
-
-        except KeyboardInterrupt:
-            print("\nPlayback interrupted.")
         except Exception as e:
-            print(f"TTS generation error: {e}")
+            print(f"Audio playback error happened: {str(e)}")
+
         finally:
-            audio_queue.put(None)
-            audio_queue.join()
+            worker.join()
 
-            if worker_thread and worker_thread.is_alive():
-                worker_thread.join(timeout=2.0)
-
-            if stream_started and stream is not None:
-                try:
-                    stream.stop()
-                except Exception:
-                    pass
-                try:
-                    stream.close()
-                except Exception:
-                    pass
-
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-
-# Quick test script block
+# Lets test the script
 if __name__ == "__main__":
-    tts = TextToSpeech()
+    tts = Wisdom_cowork_TTS()
 
-    test_prompt = str(input("Write what you want to say: "))
+    # testing out a hardcoded string first, then user input
+    # tts.speak("Hello world, testing the TTS system.")
 
-    tts.speak(test_prompt)
+    user_text = input("Enter text for TTS to speak: ")
+    tts.speak(user_text)

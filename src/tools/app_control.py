@@ -2,6 +2,7 @@ import shutil
 import os
 import subprocess
 import platform
+import difflib
 from AppOpener import open # Why don't more people make such modules :[
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
@@ -75,7 +76,7 @@ class OpenApps:
             return False
 
     def final_pass(self):
-        # The last pass if something is found here then, the app doesn't exists 
+        # The last pass if something is not found here then, the app doesn't exists 
         self.target_app = self.target_app.lower()
 
         try:
@@ -134,31 +135,53 @@ class OpenApps:
     # Linux Block Starts
     def linux_tier_1(self): # the lighting fast shutil.which comes in PLAYYYYY!!!!!!
         exec_path = shutil.which(self.target_app)
+        path = os.environ.get("PATH", "")
+
+        if exec_path:
+            try:
+                subprocess.Popen([exec_path], shell=False)
+                return f"Opened {self.target_app}", 1
+
+            except Exception as e:
+                print(f"Direct launch failed: {e}")
+
+        # Added this check here because if added at the top, it would fail LOL
+        if not path:
+            return False
 
         try:
-            if exec_path:
-                subprocess.Popen([exec_path])
-                return f"Opened {self.target_app} using PATH", 1
+            executable = {}
 
-            if not exec_path:
+            # Splitting TIME!!
+            for directory in path.split(os.pathsep):
+                if not os.path.isdir(directory):
+                    continue
+
                 try:
-                    linux_path = os.environ.get("PATH", "")
+                    for entry in os.scandir(directory):
+                        if entry.is_file() and os.access(entry.path, os.X_OK):
+                            # Now lets store it
+                            executable[entry.name] = entry.path
 
-                    # Lets record every app, so we don't check same file twice
-                    seen = set()
+                # Tested it once, and I got obliterated with Permission Errors
+                except PermissionError:
+                    continue
 
-                    for paths in linux_path.split(os.pathsep):
-                        if not paths or paths.lower() in seen or not os.path.isdir(paths):
-                            continue
+        # Now lets fuzzy strin' em!
 
-                        # Now lets add every path for record
-                        seen.add(paths)
+            matches = difflib.get_close_matches(self.target_app, executable.keys(), n=1)
 
-                except:
-                    pass
+            if matches:
+                best_match_name = matches[0]
+                exec_path = executable[best_match_name]
 
-        except:
-            pass
+                subprocess.Popen([exec_path], shell=False)
+                return f"Opened {best_match_name}. Please write the app names correctly man, like you wrote {self.target_app} and I fuzzy matched it to {best_match_name})", 1
+            
+        except Exception as e:
+            print(f"Tier 1 failed(Linux Edition)\n Error: {e}")
+
+        return False
 
     def open_app(self):
         try:
