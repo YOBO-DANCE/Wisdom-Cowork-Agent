@@ -2,10 +2,16 @@ import shutil
 import os
 import subprocess
 import platform
+import shlex
+import re
 import difflib
-from AppOpener import open # Why don't more people make such modules :[
+from pathlib import Path
+from configparser import ConfigParser
+
+# Had to keep them here else my posix fellows will have trouble
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
+    from AppOpener import open # Why don't more people make such modules :[
 
 
 class OpenApps:
@@ -182,6 +188,53 @@ class OpenApps:
             print(f"Tier 1 failed(Linux Edition)\n Error: {e}")
 
         return False
+
+    def linux_tier_2(self):
+        Xdg_files_paths = [Path("/usr/share/applications"), Path("~/.local/share/applications").expanduser()]
+        Config_Read = ConfigParser()
+        imp_data = {}
+
+        for path in Xdg_files_paths:
+            if path.exists():
+                # Here I am trying a new way(for me) of fuzzy stringing!
+                for file_path in path.rglob("*.desktop"):
+                    try:
+                        Config_Read.read(file_path)
+
+                        if "Desktop Entry" in Config_Read:
+                            config_data = Config_Read["Desktop Entry"]
+
+                            app_name = config_data.get("Name", file_path.stem)
+                            app_exec_command = config_data.get("Exec", "")
+
+                            imp_data[app_name] = app_exec_command
+
+                    # Skipping all the bullshit
+                    except:
+                        continue
+
+        # Main function starts here
+        try:
+            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1)
+
+            if matches:
+                best_match_name = matches[0]
+                exec_path = imp_data[best_match_name]
+
+                pattern = "\s+%[a-zA-Z]"
+                new_pattern = ""
+
+                exec_command = re.sub(pattern, new_pattern, exec_path)
+                split_exec_command = shlex.split(exec_command)
+
+                if split_exec_command:
+                    subprocess.Popen(split_exec_command, shell=False)
+                    return True
+
+        except Exception as e:
+            print(f"The App does not exist \n {e}")
+            return False
+
 
     def open_app(self):
         try:
