@@ -191,7 +191,6 @@ class OpenApps:
 
     def linux_tier_2(self):
         Xdg_files_paths = [Path("/usr/share/applications"), Path("~/.local/share/applications").expanduser()]
-        Config_Read = ConfigParser()
         imp_data = {}
 
         for path in Xdg_files_paths:
@@ -199,12 +198,13 @@ class OpenApps:
                 # Here I am trying a new way(for me) of fuzzy stringing!
                 for file_path in path.rglob("*.desktop"):
                     try:
+                        Config_Read = ConfigParser()
                         Config_Read.read(file_path)
 
                         if "Desktop Entry" in Config_Read:
                             config_data = Config_Read["Desktop Entry"]
 
-                            app_name = config_data.get("Name", file_path.stem)
+                            app_name = config_data.get("Name", file_path.stem).lower()
                             app_exec_command = config_data.get("Exec", "")
 
                             imp_data[app_name] = app_exec_command
@@ -215,16 +215,18 @@ class OpenApps:
 
         # Main function starts here
         try:
-            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1)
+            self.target_app = self.target_app.lower()
+            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1, cutoff=0.6)
 
             if matches:
                 best_match_name = matches[0]
                 exec_path = imp_data[best_match_name]
 
-                pattern = "\s+%[a-zA-Z]"
-                new_pattern = ""
+                exec_path = os.path.expandvars(exec_path)
 
-                exec_command = re.sub(pattern, new_pattern, exec_path)
+                pattern = r"\s+%[a-zA-Z]"
+
+                exec_command = re.sub(pattern, "", exec_path)
                 split_exec_command = shlex.split(exec_command)
 
                 if split_exec_command:
@@ -260,4 +262,4 @@ class OpenApps:
 if __name__ == "__main__":
     app_to_open = OpenApps(input("Write the app name: "))
 
-    app_to_open.open_app()
+    app_to_open.linux_tier_2()
