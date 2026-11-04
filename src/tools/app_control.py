@@ -234,8 +234,28 @@ class OpenApps:
                     return True
 
         except Exception as e:
-            print(f"The App does not exist \n {e}")
+            print(f"Tier 2 failed \n Error: {e}")
             return False
+
+    def linux_open(self):
+        try:
+            try:
+                if self.current_os == "Linux":
+                    tier_1_success = self.linux_tier_1()
+
+                    if tier_1_success:
+                        return
+
+                    tier_2_success = self.linux_tier_2()
+
+                    if tier_2_success:
+                        return
+
+            finally:
+                pass
+
+        except Exception as e:
+            print(f"The app does not exists \n Error: {e}")
 
 
     def open_app(self):
