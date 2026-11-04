@@ -185,7 +185,7 @@ class OpenApps:
                 return f"Opened {best_match_name}. Please write the app names correctly man, like you wrote {self.target_app} and I fuzzy matched it to {best_match_name})", 1
             
         except Exception as e:
-            print(f"Tier 1 failed(Linux Edition)\n Error: {e}")
+            print(f"Tier 1 failed(Linux Edition)\n Error: {e} \n")
 
         return False
 
@@ -234,7 +234,7 @@ class OpenApps:
                     return True
 
         except Exception as e:
-            print(f"Tier 2 failed \n Error: {e}")
+            print(f"Tier 2 failed \n Error: {e} \n")
             return False
 
     def linux_open(self):
@@ -268,8 +268,7 @@ class OpenApps:
                 return False
 
             elif self.current_os == "Linux":
-                print(f"not implemented yet! \n Current OS: {self.current_os}")
-                return False
+                return self.linux_open()
 
             else:
                 print(f"Unsupported OS! \n Current OS: {self.current_os}")
@@ -282,4 +281,4 @@ class OpenApps:
 if __name__ == "__main__":
     app_to_open = OpenApps(input("Write the app name: "))
 
-    app_to_open.linux_tier_2()
+    app_to_open.open_app()
