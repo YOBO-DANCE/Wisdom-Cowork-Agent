@@ -299,6 +299,28 @@ class OpenApps:
             print(f"Tier 2 failed (Mac OS Edition) \n Error: {e}")
             return False
 
+    def mac_os_open(self):
+        if self.current_os == "Darwin":
+            try:
+                try:
+                    tier_1_suc = self.mac_os_tier_1()
+
+                    if tier_1_suc:
+                        return
+
+                    tier_2_suc = self.mac_os_tier_2()
+
+                    if tier_2_suc:
+                        return
+
+                finally:
+                    pass
+
+            except Exception as e:
+                print(f"The App doesn't exists \n Error: {e}")
+                return False
+
+
     def open_app(self):
         try:
             if self.current_os == "Windows":
