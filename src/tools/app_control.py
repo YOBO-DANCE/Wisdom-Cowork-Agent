@@ -256,7 +256,48 @@ class OpenApps:
 
         except Exception as e:
             print(f"The app does not exists \n Error: {e}")
+    # Linux Block Ends
 
+    # Mac OS Block Starts
+    def mac_os_tier_1(self):
+        try:
+            subprocess.Popen(["open", "-a", self.target_app])
+            return True
+
+        except Exception as e:
+            print(f"Tier 1 failed(Mac OS Edition) \n Error: {e}")
+            return False
+
+    def mac_os_tier_2(self):
+        try:
+            Applications_Paths = [Path("/Applications/"), Path("~/Applications/").expanduser()]
+            imp_data = {}
+
+            for paths in Applications_Paths:
+                if paths.exists():
+                    for path in paths.rglob("*.app"):
+                        app_name = path.stem.lower()
+
+                        # Populating the dictionary
+                        imp_data[app_name] = path
+
+            self.target_app = self.target_app.lower()
+            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1)
+
+            try:
+                if matches:
+                    best_match = matches[0]
+                    app_path = imp_data[best_match]
+
+                    subprocess.Popen(["open", "-a", str(app_path)], shell=False)
+                    return True
+
+            finally:
+                pass
+
+        except Exception as e:
+            print(f"Tier 2 failed (Mac OS Edition) \n Error: {e}")
+            return False
 
     def open_app(self):
         try:
