@@ -7,6 +7,7 @@ import re
 import difflib
 from pathlib import Path
 from configparser import ConfigParser
+from unittest import result
 
 # Had to keep them here else my posix fellows will have trouble
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
@@ -261,12 +262,14 @@ class OpenApps:
     # Mac OS Block Starts
     def mac_os_tier_1(self):
         try:
-            subprocess.Popen(["open", "-a", self.target_app])
-            return True
+            result = subprocess.run(["open", "-a", self.target_app], capture_output=True, shell=False, text=True)
+            return result.returncode == 0
 
         except Exception as e:
             print(f"Tier 1 failed(Mac OS Edition) \n Error: {e}")
             return False
+
+        # Eazy peazy lemon squeezy
 
     def mac_os_tier_2(self):
         try:
@@ -275,49 +278,52 @@ class OpenApps:
 
             for paths in Applications_Paths:
                 if paths.exists():
-                    for path in paths.rglob("*.app"):
+                    for path in paths.glob("*.app"):
                         app_name = path.stem.lower()
 
                         # Populating the dictionary
                         imp_data[app_name] = path
 
-            self.target_app = self.target_app.lower()
-            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1)
+            target_lower = self.target_app.lower().strip()
+            best_match = None
 
-            try:
+            if len(target_lower) >= 3:
+                substring_matches = [name for name in imp_data.keys() if target_lower in name]
+                if substring_matches:
+                    best_match = min(substring_matches, key=len)
+
+            if not best_match and len(target_lower) >= 3:
+                matches = difflib.get_close_matches(target_lower, imp_data.keys(), n=1, cutoff=0.5)
                 if matches:
                     best_match = matches[0]
-                    app_path = imp_data[best_match]
 
-                    subprocess.Popen(["open", "-a", str(app_path)], shell=False)
-                    return True
+            if best_match:
+                app_path = imp_data[best_match]
+                result = subprocess.run(["open", "-a", str(app_path)], shell=False, capture_output=True, text=True)
+                return result.returncode == 0
 
-            finally:
-                pass
+            return False
 
         except Exception as e:
             print(f"Tier 2 failed (Mac OS Edition) \n Error: {e}")
             return False
 
+    # It worked for me, but I don't know if it will work for you or not, so please test it and let me know if it works or not
+
     def mac_os_open(self):
         if self.current_os == "Darwin":
             try:
-                try:
-                    tier_1_suc = self.mac_os_tier_1()
+                if self.mac_os_tier_1():
+                    return True
 
-                    if tier_1_suc:
-                        return
+                if self.mac_os_tier_2():
+                    return True
 
-                    tier_2_suc = self.mac_os_tier_2()
-
-                    if tier_2_suc:
-                        return
-
-                finally:
-                    pass
+                print("The app doesn't exist.")
+                return False
 
             except Exception as e:
-                print(f"The App doesn't exists \n Error: {e}")
+                print(f"An error occurred while opening the app \n Error: {e}")
                 return False
 
 
@@ -327,8 +333,7 @@ class OpenApps:
                 return self.windows_open_app()
 
             elif self.current_os == "Darwin":
-                print(f"not implemented yet! \n Current OS: {self.current_os}")
-                return False
+                return self.mac_os_open()
 
             elif self.current_os == "Linux":
                 return self.linux_open()

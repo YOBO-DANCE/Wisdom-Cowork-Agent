@@ -6,7 +6,6 @@ import numpy as np
 import pyaudio
 from faster_whisper import WhisperModel
 
-# TODO: Clean up this DLL hack later, but it works for now on windows
 if sys.platform == "win32":
     venv_path = sys.prefix
     # paths to cuda libs for ctranslate2 
@@ -34,6 +33,7 @@ class PushToTalkSTT:
         try:
             self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
             print("Loaded fine on GPU!")
+
         except Exception as err:
             print(f"Oops, GPU load failed: {err}. Falling back to CPU.")
             # fallback to cpu if cuda acts up
@@ -64,6 +64,7 @@ class PushToTalkSTT:
             try:
                 chunk_data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
                 audio_chunks.append(chunk_data)
+
             except Exception as e:
                 print(f"error reading stream: {e}")
                 break
@@ -105,6 +106,7 @@ class PushToTalkSTT:
                 # debounce a bit
                 while keyboard.is_pressed(self.hotkey):
                     time.sleep(0.05)
+
                 break
 
         print("Stopped recording. Processing...")
@@ -157,7 +159,15 @@ if __name__ == "__main__":
                 if "exit" in result_text.lower() or "stop" in result_text.lower():
                     print("Exiting loop...")
                     break
+
     except KeyboardInterrupt:
         print("Interrupted by user, cleaning up.")
+        
     finally:
         stt.close()
+
+# If you ever want to test this, just uncomment these blocks
+# if __name__ == "__main__":
+#     speak = PushToTalkSTT()
+
+#     speak()
