@@ -7,12 +7,15 @@ import re
 import difflib
 from pathlib import Path
 from configparser import ConfigParser
-from unittest import result
+
 
 # Had to keep them here else my posix fellows will have trouble
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
     from AppOpener import open # Why don't more people make such modules :[
+    import psutil
+    import win32gui
+    import win32con
 
 
 class OpenApps:
@@ -42,7 +45,7 @@ class OpenApps:
             return False
 
         except Exception as e:
-            print(f"Tier 1 failed {e}")
+            print(f"Tier 1 failed\nError: {e}")
 
     def second_pass(self):
         # Most apps can be open using AppOpener
@@ -53,7 +56,7 @@ class OpenApps:
             return True
 
         except Exception as e:
-            print(f"Tier 2 failed: {e}")
+            print(f"Tier 2 failed\nError: {e}\n")
             return False
 
     def third_pass(self):
@@ -79,7 +82,7 @@ class OpenApps:
                 return False
 
         except Exception as e:
-            print(f"Tier 3 failed {e}")
+            print(f"Tier 3 failed\nError: {e}\n")
             return False
 
     def final_pass(self):
@@ -106,7 +109,7 @@ class OpenApps:
             return False
 
         except Exception as e:
-            print(f"Tier 4 failed: {e}")
+            print(f"Tier 4 failed\nError: {e}\n")
             return False
 
     def windows_open_app(self):
@@ -136,7 +139,7 @@ class OpenApps:
                 pass
 
         except Exception as e:
-            print(f"No app named {self.target_app} is found! \n Error: {e}")
+            print(f"No app named {self.target_app} is found!\nError: {e}\n")
     # Windows Block Ends
 
     # Linux Block Starts
@@ -186,7 +189,7 @@ class OpenApps:
                 return f"Opened {best_match_name}. Please write the app names correctly man, like you wrote {self.target_app} and I fuzzy matched it to {best_match_name})", 1
             
         except Exception as e:
-            print(f"Tier 1 failed(Linux Edition)\n Error: {e} \n")
+            print(f"Tier 1 failed(Linux Edition)\nError: {e}\n")
 
         return False
 
@@ -235,7 +238,7 @@ class OpenApps:
                     return True
 
         except Exception as e:
-            print(f"Tier 2 failed \n Error: {e} \n")
+            print(f"Tier 2 failed\nError: {e}\n")
             return False
 
     def linux_open(self):
@@ -344,6 +347,18 @@ class OpenApps:
 
         except Exception as e:
             print(f"Some Error occured: {e}")
+
+# Now that OpenApps is complete, lets start with closing
+class CloseApps:
+    def __init__(self, target_app):
+        print("Closing the app")
+        self.target_app = target_app
+        self.current_os = platform.system()
+
+    # I have windows so it makes sense to code the function for that first
+    def windows_close(self):
+        pass
+
 
 # Quick Test Block
 if __name__ == "__main__":
