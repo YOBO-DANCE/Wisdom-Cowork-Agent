@@ -13,7 +13,7 @@ from configparser import ConfigParser
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
     from AppOpener import open # Why don't more people make such modules :[
-    import psutil
+    import win32process
     import win32gui
     import win32con
 
@@ -195,12 +195,12 @@ class OpenApps:
 
     def linux_tier_2(self):
         Xdg_files_paths = [Path("/usr/share/applications"), Path("~/.local/share/applications").expanduser()]
-        imp_data = {}
+        files_data = {}
 
-        for path in Xdg_files_paths:
-            if path.exists():
+        for paths in Xdg_files_paths:
+            if paths.exists():
                 # Here I am trying a new way(for me) of fuzzy stringing!
-                for file_path in path.rglob("*.desktop"):
+                for file_path in paths.rglob("*.desktop"): # First time using recursive glob, saves so much time LOL
                     try:
                         Config_Read = ConfigParser()
                         Config_Read.read(file_path)
@@ -211,7 +211,7 @@ class OpenApps:
                             app_name = config_data.get("Name", file_path.stem).lower()
                             app_exec_command = config_data.get("Exec", "")
 
-                            imp_data[app_name] = app_exec_command
+                            files_data[app_name] = app_exec_command
 
                     # Skipping all the bullshit
                     except:
@@ -220,11 +220,11 @@ class OpenApps:
         # Main function starts here
         try:
             self.target_app = self.target_app.lower()
-            matches = difflib.get_close_matches(self.target_app, imp_data.keys(), n=1, cutoff=0.6)
+            matches = difflib.get_close_matches(self.target_app, files_data.keys(), n=1, cutoff=0.6)
 
             if matches:
                 best_match_name = matches[0]
-                exec_path = imp_data[best_match_name]
+                exec_path = files_data[best_match_name]
 
                 exec_path = os.path.expandvars(exec_path)
 
@@ -277,7 +277,7 @@ class OpenApps:
     def mac_os_tier_2(self):
         try:
             Applications_Paths = [Path("/Applications/"), Path("~/Applications/").expanduser()]
-            imp_data = {}
+            apps_found = {}
 
             for paths in Applications_Paths:
                 if paths.exists():
@@ -285,23 +285,23 @@ class OpenApps:
                         app_name = path.stem.lower()
 
                         # Populating the dictionary
-                        imp_data[app_name] = path
+                        apps_found[app_name] = path
 
             target_lower = self.target_app.lower().strip()
             best_match = None
 
             if len(target_lower) >= 3:
-                substring_matches = [name for name in imp_data.keys() if target_lower in name]
+                substring_matches = [name for name in apps_found.keys() if target_lower in name]
                 if substring_matches:
                     best_match = min(substring_matches, key=len)
 
             if not best_match and len(target_lower) >= 3:
-                matches = difflib.get_close_matches(target_lower, imp_data.keys(), n=1, cutoff=0.5)
+                matches = difflib.get_close_matches(target_lower, apps_found.keys(), n=1, cutoff=0.5)
                 if matches:
                     best_match = matches[0]
 
             if best_match:
-                app_path = imp_data[best_match]
+                app_path = apps_found[best_match]
                 result = subprocess.run(["open", "-a", str(app_path)], shell=False, capture_output=True, text=True)
                 return result.returncode == 0
 
@@ -357,7 +357,14 @@ class CloseApps:
 
     # I have windows so it makes sense to code the function for that first
     def windows_close(self):
-        pass
+        def enum_windows(hwnd, extra_list):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(extra_list)
+                if title:
+                    extra_list.append((hwnd, extra_list))
+
+        window_list = []
+        win32gui.EnumWindows(enum_windows, window_list)
 
 
 # Quick Test Block
