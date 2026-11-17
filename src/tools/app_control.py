@@ -13,10 +13,6 @@ from configparser import ConfigParser
 if platform.system() == "Windows": # I remember people on unix based operating system having problem with this module so I added a if statement for it
     import win32com.client
     from AppOpener import open # Why don't more people make such modules :[
-    import win32process
-    import win32gui
-    import win32con
-    import psutil
 
 
 class OpenApps:
