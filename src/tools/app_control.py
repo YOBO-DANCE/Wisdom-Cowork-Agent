@@ -16,6 +16,7 @@ if platform.system() == "Windows": # I remember people on unix based operating s
     import win32process
     import win32gui
     import win32con
+    import psutil
 
 
 class OpenApps:
@@ -347,28 +348,3 @@ class OpenApps:
 
         except Exception as e:
             print(f"Some Error occured: {e}")
-
-# Now that OpenApps is complete, lets start with closing
-class CloseApps:
-    def __init__(self, target_app):
-        print("Closing the app")
-        self.target_app = target_app
-        self.current_os = platform.system()
-
-    # I have windows so it makes sense to code the function for that first
-    def windows_close(self):
-        def enum_windows(hwnd, extra_list):
-            if win32gui.IsWindowVisible(hwnd):
-                title = win32gui.GetWindowText(extra_list)
-                if title:
-                    extra_list.append((hwnd, extra_list))
-
-        window_list = []
-        win32gui.EnumWindows(enum_windows, window_list)
-
-
-# Quick Test Block
-if __name__ == "__main__":
-    app_to_open = OpenApps(input("Write the app name: "))
-
-    app_to_open.open_app()
