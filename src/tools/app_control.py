@@ -30,7 +30,7 @@ class OpenApps:
 
             if exec_path:
                 # This is for those .cmd and .bat app especially developer programs
-                if platform == "win32" and exec_path.lower().endswith((".bat", ".cmd")):
+                if self.current_os == "windows" and exec_path.lower().endswith((".bat", ".cmd")):
                     subprocess.Popen(["cmd.exe", "/c", exec_path])
                     return True
 
@@ -46,10 +46,10 @@ class OpenApps:
 
     def second_pass(self):
         # Most apps can be open using AppOpener
-        self.target_app = self.target_app.lower()
+        target_lower = self.target_app.lower().strip()
 
         try:
-            open(self.target_app, match_closest=True, throw_error=True)
+            open(target_lower, match_closest=True, throw_error=True)
             return True
 
         except Exception as e:
@@ -84,7 +84,7 @@ class OpenApps:
 
     def final_pass(self):
         # The last pass if something is not found here then, the app doesn't exists 
-        self.target_app = self.target_app.lower()
+        target_lower = self.target_app.lower().strip()
 
         try:
             start_menu_paths = [os.path.expandvars(r"%AppData%\Microsoft\Windows\Start Menu\Programs"), os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs")]
@@ -92,7 +92,7 @@ class OpenApps:
             for start_menu_path in start_menu_paths:
                 for root, dirs, files in os.walk(start_menu_path):
                     for file in files:
-                        if file.endswith(".lnk") and self.target_app in file.lower():
+                        if file.endswith(".lnk") and target_lower in file.lower():
                             full_path = os.path.join(root, file)
 
                             shell = win32com.client.Dispatch("WScript.Shell")
@@ -216,8 +216,8 @@ class OpenApps:
 
         # Main function starts here
         try:
-            self.target_app = self.target_app.lower()
-            matches = difflib.get_close_matches(self.target_app, files_data.keys(), n=1, cutoff=0.6)
+            target_lower = self.target_app.lower().strip()
+            matches = difflib.get_close_matches(target_lower, files_data.keys(), n=1, cutoff=0.6)
 
             if matches:
                 best_match_name = matches[0]
