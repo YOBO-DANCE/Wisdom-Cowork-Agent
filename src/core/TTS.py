@@ -38,39 +38,45 @@ class Wisdom_cowork_TTS:
         self.model_path = model_path
         self.voice = None
         self.sample_rate = 22050
+        self.lock = threading.Lock()
 
     def initialize_model(self):
         # check if already loaded, don't want to load twice lol
         if self.voice is not None:
             return
 
-        print(f"Loading Piper model ({self.model_path})...")
+        with self.lock:
+            if self.voice is not None:
+                return
+            
+            print(f"Loading Piper model ({self.model_path})...")
 
-        try:
-            self.voice = PiperVoice.load(self.model_path)
-            self.sample_rate = self.voice.config.sample_rate
-            print("Yay, model loaded sucessfully!")
+            try:
+                self.voice = PiperVoice.load(self.model_path)
+                self.sample_rate = self.voice.config.sample_rate
+                print("Yay, model loaded sucessfully!")
 
-        except Exception as e:
-            print(f"Model load error: {str(e)}. Check your path or internet connection if downloading.")
-            raise
+            except Exception as e:
+                print(f"Model load error: {str(e)}. Check your path or internet connection if downloading.")
+                raise
 
     def speak(self, text):
-        if not text.strip():
+        if not text or not text.strip():
             print("Empty string, skipping...") # added log jic
             return
 
         self.initialize_model()
         print(f"Speaking: {text}")
 
-        audio_queue = queue.Queue()
+        audio_queue = queue.Queue(maxsize=12)
 
         def synthesis_worker():
             try:
                 for chunk in self.voice.synthesize(text):
                     audio_bytes = chunk.audio_int16_bytes
                     audio_chunk = np.frombuffer(audio_bytes, dtype=np.int16)
-                    audio_queue.put(audio_chunk)
+                    if audio_chunk.size > 0:
+                        audio_queue.put(audio_chunk)
 
             except Exception as e:
                 print(f"Oops, synthesis error: {str(e)}")
@@ -84,18 +90,13 @@ class Wisdom_cowork_TTS:
 
         try:
             # open sounddevice stream
-            stream = sd.OutputStream(samplerate=self.sample_rate, channels=1, dtype='int16')
-            stream.start()
+            with sd.OutputStream(samplerate=self.sample_rate, channels=1, dtype="int16") as stream:  # Used context manager so stream always closes cleanly
+                while True:
+                    chunk = audio_queue.get()
+                    if chunk is None:
+                        break
 
-            while True:
-                chunk = audio_queue.get()
-                if chunk is None:
-                    break
-
-                stream.write(chunk)
-
-            stream.stop()
-            stream.close()
+                    stream.write(chunk)
 
         except Exception as e:
             print(f"Audio playback error happened: {str(e)}")
