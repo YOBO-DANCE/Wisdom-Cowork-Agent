@@ -1,3 +1,18 @@
+# Wisdom CoWork Agent - It can do every task on desktop without u lifting a finger, just tell it what to do and it will do it for you. It can open apps, search the web, and even control your system settings. It's like having a personal assistant that never sleeps!
+# Copyright (C) 2026 Tanmay Hathile
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 import time
