@@ -344,3 +344,8 @@ class OpenApps:
 
         except Exception as e:
             print(f"Some Error occured: {e}")
+
+if __name__ == "__main__":
+    app_name = input("Enter the name of the app you want to open: ")
+    opener = OpenApps(app_name)
+    opener.open_app()

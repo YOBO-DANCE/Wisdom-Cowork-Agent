@@ -41,6 +41,7 @@ class PushToTalkSTT:
 
         self.pyaud = pyaudio.PyAudio() # need to call terminate later!!
         self.hotkey = hotkey
+        self.model_size = model_size
 
     def listen_hold_to_talk(self):
         # Records audio while holding key down
@@ -60,19 +61,20 @@ class PushToTalkSTT:
 
         audio_chunks = []
 
-        while keyboard.is_pressed(self.hotkey):
-            try:
-                chunk_data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
-                audio_chunks.append(chunk_data)
+        try:
+            while keyboard.is_pressed(self.hotkey):
+                try:
+                    chunk_data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
+                    audio_chunks.append(chunk_data)
 
-            except Exception as e:
-                print(f"error reading stream: {e}")
-                break
+                except Exception as e:
+                    print(f"error reading stream: {e}")
+                    break
 
-        print("Key released, transcribing...")
-
-        stream.stop_stream()
-        stream.close()
+            print("Key released, transcribing...")
+        finally:
+            stream.stop_stream()
+            stream.close()
 
         return self._transcribe_frames(audio_chunks)
 
@@ -98,21 +100,22 @@ class PushToTalkSTT:
 
         audio_chunks = []
 
-        while True:
-            data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
-            audio_chunks.append(data)
+        try:
+            while True:
+                data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
+                audio_chunks.append(data)
 
-            if keyboard.is_pressed(self.hotkey):
-                # debounce a bit
-                while keyboard.is_pressed(self.hotkey):
-                    time.sleep(0.05)
+                if keyboard.is_pressed(self.hotkey):
+                    # debounce a bit
+                    while keyboard.is_pressed(self.hotkey):
+                        time.sleep(0.05)
 
-                break
+                    break
 
-        print("Stopped recording. Processing...")
-
-        stream.stop_stream()
-        stream.close()
+            print("Stopped recording. Processing...")
+        finally:
+            stream.stop_stream()
+            stream.close()
 
         return self._transcribe_frames(audio_chunks)
 
@@ -124,12 +127,16 @@ class PushToTalkSTT:
         raw_data = b"".join(frames)
         audio_arr = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
 
+        duration_sec = len(audio_arr) / SAMPLE_RATE
+        peak_amp = float(np.max(np.abs(audio_arr))) if audio_arr.size > 0 else 0.0
+        print(f"Captured {duration_sec:.2f}s | peak amplitude: {peak_amp:.4f}")
+
         # run whisper model
         segments, info = self.model.transcribe(
             audio_arr,
             beam_size=5,
             language="en",
-            vad_filter=False
+            vad_filter=True
         )
 
         # combine segments into single string
